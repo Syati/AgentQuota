@@ -6,6 +6,8 @@
   <string>en</string>
   <key>CFBundleExecutable</key>
   <string>AgentQuota</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon.icns</string>
   <key>CFBundleIdentifier</key>
   <string>io.github.Syati.AgentQuota</string>
   <key>CFBundleInfoDictionaryVersion</key>

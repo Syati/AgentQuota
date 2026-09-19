@@ -83,11 +83,22 @@ final class UsageMonitor: ObservableObject {
 enum CodexUsageReader {
     static func read() async -> ProviderUsage {
         do {
+            guard let codexURL = [
+                "/opt/homebrew/bin/codex",
+                "/usr/local/bin/codex",
+                "/usr/bin/codex"
+            ]
+                .map(URL.init(fileURLWithPath:))
+                .first(where: { FileManager.default.isExecutableFile(atPath: $0.path) })
+            else {
+                return ProviderUsage(usedPercent: nil, resetsAt: nil, detail: Copy.text("codex コマンドが見つかりません", "The codex command was not found"))
+            }
+
             let process = Process()
             let input = Pipe()
             let output = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["codex", "app-server"]
+            process.executableURL = codexURL
+            process.arguments = ["app-server"]
             process.standardInput = input
             process.standardOutput = output
 
@@ -119,11 +130,11 @@ enum CodexUsageReader {
                     let result = object["result"] as? [String: Any],
                     let rateLimits = result["rateLimits"] as? [String: Any],
                     let primary = rateLimits["primary"] as? [String: Any],
-                    let percent = primary["usedPercent"] as? Double
+                    let percent = numberValue(primary["usedPercent"])
                 else { continue }
 
-                let secondary = (rateLimits["secondary"] as? [String: Any])?["usedPercent"] as? Double
-                let reset = (primary["resetsAt"] as? Double).map(Date.init(timeIntervalSince1970:))
+                let secondary = numberValue((rateLimits["secondary"] as? [String: Any])?["usedPercent"])
+                let reset = numberValue(primary["resetsAt"]).map(Date.init(timeIntervalSince1970:))
                 return ProviderUsage(usedPercent: percent, secondaryUsedPercent: secondary, resetsAt: reset, detail: "")
             }
 
@@ -131,6 +142,10 @@ enum CodexUsageReader {
         } catch {
             return ProviderUsage(usedPercent: nil, resetsAt: nil, detail: Copy.text("codex app-server を起動できませんでした", "Could not start codex app-server"))
         }
+    }
+
+    private static func numberValue(_ value: Any?) -> Double? {
+        (value as? NSNumber)?.doubleValue
     }
 }
 

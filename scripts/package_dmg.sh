@@ -23,9 +23,10 @@ env DEVELOPER_DIR="$developer_dir" swift build -c release --disable-sandbox
 
 rm -rf "$app_dir"
 rm -f "$dmg_path"
-mkdir -p "$app_dir/Contents/MacOS"
+mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
 cp "$build_dir/AgentQuota" "$app_dir/Contents/MacOS/AgentQuota"
 cp "$build_dir/AgentQuotaClaudeStatusLine" "$app_dir/Contents/MacOS/AgentQuotaClaudeStatusLine"
+cp "$root_dir/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$root_dir/Resources/Info.plist" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app_dir/Contents/Info.plist"
