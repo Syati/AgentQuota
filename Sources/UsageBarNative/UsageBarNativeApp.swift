@@ -218,6 +218,7 @@ private struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "system"
     @AppStorage("showCodex") private var showCodex = true
     @AppStorage("showClaude") private var showClaude = true
+    @State private var launchAtLogin = LoginItem.isEnabled
     @State private var showFiveHour = ClaudeStatusLineIntegration.metricPreferences.showFiveHour
     @State private var showSevenDay = ClaudeStatusLineIntegration.metricPreferences.showSevenDay
     @State private var originalCommand = ClaudeStatusLineIntegration.userCommand ?? ""
@@ -249,17 +250,16 @@ private struct SettingsView: View {
 
             Text(Copy.text("起動", "Startup"))
                 .font(.subheadline.weight(.semibold))
-            Toggle(Copy.text("ログイン時に AgentQuota を起動", "Launch AgentQuota at login"), isOn: Binding(
-                get: { LoginItem.isEnabled },
-                set: { enabled in
+            Toggle(Copy.text("ログイン時に AgentQuota を起動", "Launch AgentQuota at login"), isOn: $launchAtLogin)
+                .onChange(of: launchAtLogin) { _, enabled in
                     do {
                         try LoginItem.setEnabled(enabled)
                         message = nil
                     } catch {
+                        launchAtLogin = LoginItem.isEnabled
                         message = Copy.text("ログイン時起動を変更できません。配布版アプリから設定してください。", "Could not change launch-at-login. Configure it from the installed app.")
                     }
                 }
-            ))
 
             Divider()
 

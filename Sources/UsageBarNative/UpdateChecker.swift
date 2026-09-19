@@ -37,7 +37,7 @@ final class UpdateChecker: ObservableObject {
     private let endpoint = URL(string: "https://api.github.com/repos/Syati/AgentQuota/releases/latest")!
 
     init() {
-        currentVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.3.1"
+        currentVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.3.2"
     }
 
     func check() {
