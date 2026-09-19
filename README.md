@@ -1,50 +1,68 @@
 # AgentQuota
 
-Codex と Claude Code の利用量をメニューバーで確認する、小さなネイティブ macOS アプリです。
+AgentQuota is a small native macOS menu bar app for monitoring Codex and Claude Code quota usage.
 
-## この初期版の安全設計
+![AgentQuota](docs/screenshots/agentquota-main.png)
 
-- Codex は `codex app-server` の `account/rateLimits/read` だけを使用します。
-- Claude Code は statusline が渡す利用枠情報だけを、`~/Library/Application Support/AgentQuota/` に保存して読みます。
-- Claude の Keychain、OAuth トークン、非公式の Claude usage API は使用しません。
-- 自動更新・テレメトリー・ログイン画面はありません。
+## Features
 
-設定画面で既存の statusline コマンドを指定して「既存の statusline と連携」を押すと、AgentQuota のラッパーが同じJSONを元のコマンドとAgentQuotaの両方へ渡します。既存の表示を維持したまま、5時間枠・週次枠から選んだ指標を AgentQuota に保存できます。設定後は Claude Code を一度操作すると利用量が表示されます。
+- Menu bar summary such as `Cdx 86% · Cl 21%`.
+- Hover details for both the 5-hour and 7-day windows.
+- Compact table with progress bars for Codex and Claude Code.
+- Claude Code statusline integration that preserves your existing statusline command through a wrapper.
+- Select which Claude Code quota windows to display: 5-hour and/or 7-day.
+- Settings and About in one window with a sidebar.
+- Japanese and English UI, plus a system-language option.
+- Optional launch at login.
+- Warning icon when a quota reaches 90%.
 
-正確なClaudeの残量を得るために認証トークンや非公式APIを使う実装は、意図して含めていません。
+![AgentQuota settings](docs/screenshots/agentquota-settings.png)
 
-## 起動
+## Privacy and security
+
+- Codex usage is read through the official `codex app-server` `account/rateLimits/read` method.
+- Claude Code usage comes only from the JSON input provided to its official statusline command.
+- The Claude integration stores only quota percentages and reset times locally in `~/Library/Application Support/AgentQuota/`.
+- AgentQuota does not access Keychain, OAuth tokens, or unofficial Claude usage APIs.
+- There is no telemetry, login screen, or automatic network service.
+
+When an existing Claude Code statusline command is configured, AgentQuota stores it and passes the same input to both the wrapper and the original command. Your existing statusline output can therefore continue to work.
+
+## Requirements
+
+- macOS 14 or later
+- Xcode or the Swift toolchain
+- `codex` for Codex usage
+- Claude Code 2.1.277 or later for the statusline rate-limit input
+
+## Run from source
 
 ```sh
 swift run AgentQuota
 ```
 
-Command Line Tools ではなくXcodeを使用したい場合、現在のシェルだけで切り替えるには次を実行します。
+To use Xcode's toolchain for the current shell:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run AgentQuota
 ```
 
-Mac全体でXcodeを標準の開発ツールにするには、ターミナルで次を実行し、macOSのパスワードを入力します。
+## Claude Code integration
+
+Open **Settings → Claude Code integration** and choose the quota windows you want. If you already have a statusline command, leave it in the command field and choose **Connect existing statusline**. AgentQuota creates a wrapper so the original command receives the same JSON input.
+
+The Claude Code statusline is the supported data bridge; AgentQuota does not use private usage endpoints or credentials.
+
+## Build a DMG
 
 ```sh
-sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+./scripts/package_dmg.sh 0.2.0
 ```
 
-終了はメニューバーのアプリを終了するか、起動したターミナルで `Control-C` を押します。
+The DMG is created at `dist/AgentQuota-0.2.0.dmg`. The app is ad-hoc signed and is not notarized by Apple.
 
-## DMGの作成
+## License
 
-XcodeをインストールしたMacで、リリース番号を渡して実行します。
+This project is currently distributed without a separate license file.
 
-```sh
-./scripts/package_dmg.sh 0.1.0
-```
-
-`dist/AgentQuota-0.1.0.dmg` が生成されます。このDMG内のアプリはad-hoc署名であり、Appleによる公証はされていません。
-
-## 今後の候補
-
-- Claude Code の公式で安定した読み取り専用usageコマンドが提供されたら、その経路を追加する。
-- App Bundle とログイン時起動を追加する。
-- 5時間枠と週次枠を同時に表示する。
+日本語版: [README_ja.md](README_ja.md)
