@@ -16,8 +16,6 @@ AgentQuota is a small native macOS menu bar app for monitoring Codex and Claude 
 - Optional launch at login.
 - Warning icon when a quota reaches 90%.
 
-![AgentQuota settings](docs/screenshots/agentquota-settings.png)
-
 ## Privacy and security
 
 - Codex usage is read through the official `codex app-server` `account/rateLimits/read` method.
