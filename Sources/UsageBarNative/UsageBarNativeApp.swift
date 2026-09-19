@@ -119,15 +119,16 @@ private struct UpdateView: View {
             }
 
             SettingsCard("GitHub") {
-                Button(Copy.text("GitHub Releases を開く", "Open GitHub Releases")) {
-                    if let url = URL(string: "https://github.com/Syati/AgentQuota/releases") {
-                        openURL(url)
-                    }
-                }
-                .font(.caption)
                 if let availableURL = updateChecker.availableURL {
-                    Button(Copy.text("GitHub のリリースを開く", "Open GitHub Release")) {
+                    Button(Copy.text("新しいリリースを開く", "Open New Release")) {
                         openURL(availableURL)
+                    }
+                    .font(.caption)
+                } else {
+                    Button(Copy.text("GitHub Releases を開く", "Open GitHub Releases")) {
+                        if let url = URL(string: "https://github.com/Syati/AgentQuota/releases") {
+                            openURL(url)
+                        }
                     }
                     .font(.caption)
                 }
