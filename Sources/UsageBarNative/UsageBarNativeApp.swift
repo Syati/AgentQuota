@@ -88,6 +88,57 @@ private struct UsagePopover: View {
     }
 }
 
+private struct UpdateView: View {
+    @Environment(\.openURL) private var openURL
+    @StateObject private var updateChecker = UpdateChecker()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Copy.text("アップデート", "Update"))
+                .font(.title3.weight(.semibold))
+            Text(Copy.text("GitHub の公開リリースを確認します。署名なしの DMG は自動インストールせず、リリースページから手動で更新します。", "Check public GitHub releases. Unsigned DMGs are not installed automatically; update manually from the release page."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            HStack {
+                Text(updateChecker.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(Copy.text("確認", "Check")) {
+                    updateChecker.check()
+                }
+                .font(.caption)
+                .disabled({
+                    if case .checking = updateChecker.state { return true }
+                    return false
+                }())
+            }
+
+            Button(Copy.text("GitHub Releases を開く", "Open GitHub Releases")) {
+                if let url = URL(string: "https://github.com/Syati/AgentQuota/releases") {
+                    openURL(url)
+                }
+            }
+            .font(.caption)
+
+            if let availableURL = updateChecker.availableURL {
+                Button(Copy.text("GitHub のリリースを開く", "Open GitHub Release")) {
+                    openURL(availableURL)
+                }
+                .font(.caption)
+            }
+
+            Spacer()
+        }
+        .onAppear {
+            updateChecker.check()
+        }
+    }
+}
+
 private struct AboutView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -111,6 +162,7 @@ private struct AboutView: View {
 
 private enum SettingsSection: Hashable {
     case settings
+    case update
     case about
 }
 
@@ -122,6 +174,8 @@ private struct SettingsWindow: View {
             List(selection: $selection) {
                 Label(Copy.text("設定", "Settings"), systemImage: "gearshape")
                     .tag(SettingsSection.settings)
+                Label("Update", systemImage: "arrow.down.circle")
+                    .tag(SettingsSection.update)
                 Label("About", systemImage: "info.circle")
                     .tag(SettingsSection.about)
             }
@@ -130,6 +184,8 @@ private struct SettingsWindow: View {
         } detail: {
             Group {
                 switch selection {
+                case .update:
+                    UpdateView()
                 case .about:
                     AboutView()
                 default:
