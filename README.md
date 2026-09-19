@@ -5,22 +5,24 @@ Codex と Claude Code の利用量をメニューバーで確認する、小さ�
 ## この初期版の安全設計
 
 - Codex は `codex app-server` の `account/rateLimits/read` だけを使用します。
-- Claude Code は `~/.claude/rate_limits_cache.json` がある場合だけ読みます。
+- Claude Code は statusline が渡す利用枠情報だけを、`~/Library/Application Support/AgentQuota/` に保存して読みます。
 - Claude の Keychain、OAuth トークン、非公式の Claude usage API は使用しません。
 - 自動更新・テレメトリー・ログイン画面はありません。
 
-そのため Claude の表示は空、または最新でないことがあります。正確なClaudeの残量を得るために認証トークンや非公式APIを使う実装は、意図して含めていません。
+設定画面で既存の statusline コマンドを指定して「既存の statusline と連携」を押すと、AgentQuota のラッパーが同じJSONを元のコマンドとAgentQuotaの両方へ渡します。既存の表示を維持したまま、5時間枠・週次枠から選んだ指標を AgentQuota に保存できます。設定後は Claude Code を一度操作すると利用量が表示されます。
+
+正確なClaudeの残量を得るために認証トークンや非公式APIを使う実装は、意図して含めていません。
 
 ## 起動
 
 ```sh
-swift run
+swift run AgentQuota
 ```
 
 Command Line Tools ではなくXcodeを使用したい場合、現在のシェルだけで切り替えるには次を実行します。
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run AgentQuota
 ```
 
 Mac全体でXcodeを標準の開発ツールにするには、ターミナルで次を実行し、macOSのパスワードを入力します。
