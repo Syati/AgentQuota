@@ -16,8 +16,6 @@ Codex と Claude Code の利用枠をメニューバーで確認する、小さ�
 - ログイン時起動
 - 利用率が90%以上のとき警告アイコンを表示
 
-![AgentQuota 設定](docs/screenshots/agentquota-settings.png)
-
 ## プライバシーと安全性
 
 - Codex は公式の `codex app-server` の `account/rateLimits/read` だけを使用します。
