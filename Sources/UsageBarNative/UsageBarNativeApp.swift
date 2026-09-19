@@ -23,7 +23,7 @@ struct UsageBarNativeApp: App {
         .menuBarExtraStyle(.window)
 
         Window(Copy.text("AgentQuota 設定", "AgentQuota Settings"), id: "settings") {
-            SettingsWindow()
+            SettingsWindow(monitor: monitor)
         }
         .windowResizability(.contentSize)
     }
@@ -93,45 +93,50 @@ private struct UpdateView: View {
     @StateObject private var updateChecker = UpdateChecker()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 12) {
             Text(Copy.text("アップデート", "Update"))
                 .font(.title3.weight(.semibold))
-            Text(Copy.text("GitHub の公開リリースを確認します。署名なしの DMG は自動インストールせず、リリースページから手動で更新します。", "Check public GitHub releases. Unsigned DMGs are not installed automatically; update manually from the release page."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
-            Divider()
-
-            HStack {
-                Text(updateChecker.statusText)
+            SettingsCard(Copy.text("状態", "Status")) {
+                Text(Copy.text("GitHub の公開リリースを確認します。署名なしの DMG は自動インストールせず、リリースページから手動で更新します。", "Check public GitHub releases. Unsigned DMGs are not installed automatically; update manually from the release page."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                HStack {
+                    Text(updateChecker.statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(Copy.text("確認", "Check")) {
+                        updateChecker.check()
+                    }
+                    .font(.caption)
+                    .disabled({
+                        if case .checking = updateChecker.state { return true }
+                        return false
+                    }())
+                }
+            }
+
+            SettingsCard("GitHub") {
+                Button(Copy.text("GitHub Releases を開く", "Open GitHub Releases")) {
+                    if let url = URL(string: "https://github.com/Syati/AgentQuota/releases") {
+                        openURL(url)
+                    }
+                }
+                .font(.caption)
+                if let availableURL = updateChecker.availableURL {
+                    Button(Copy.text("GitHub のリリースを開く", "Open GitHub Release")) {
+                        openURL(availableURL)
+                    }
+                    .font(.caption)
+                }
+            }
+
                 Spacer()
-                Button(Copy.text("確認", "Check")) {
-                    updateChecker.check()
-                }
-                .font(.caption)
-                .disabled({
-                    if case .checking = updateChecker.state { return true }
-                    return false
-                }())
             }
-
-            Button(Copy.text("GitHub Releases を開く", "Open GitHub Releases")) {
-                if let url = URL(string: "https://github.com/Syati/AgentQuota/releases") {
-                    openURL(url)
-                }
-            }
-            .font(.caption)
-
-            if let availableURL = updateChecker.availableURL {
-                Button(Copy.text("GitHub のリリースを開く", "Open GitHub Release")) {
-                    openURL(availableURL)
-                }
-                .font(.caption)
-            }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
         }
         .onAppear {
             updateChecker.check()
@@ -139,34 +144,78 @@ private struct UpdateView: View {
     }
 }
 
-private struct AboutView: View {
+private struct ClaudeCodeView: View {
+    @State private var message: String?
+    @State private var showFiveHour = ClaudeStatusLineIntegration.metricPreferences.showFiveHour
+    @State private var showSevenDay = ClaudeStatusLineIntegration.metricPreferences.showSevenDay
+    @State private var originalCommand = ClaudeStatusLineIntegration.userCommand ?? ""
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("About AgentQuota")
-                .font(.headline)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Claude Code")
+                    .font(.title3.weight(.semibold))
 
-            Text(Copy.text("Codex と Claude Code の利用量を、メニューバーから確認するためのローカルアプリです。", "A local app for checking Codex and Claude Code usage from the menu bar."))
-                .font(.subheadline)
+                SettingsCard(Copy.text("statusline", "Statusline")) {
+                    HStack {
+                        Text(Copy.text("状態", "Status"))
+                        Spacer()
+                        Text(ClaudeStatusLineIntegration.statusDescription)
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    Text(Copy.text("Claude Code の statusline を利用して、画面への表示と AgentQuota への保存を同時に行います。", "Claude Code's statusline is used for both its display and saving data to AgentQuota."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField(Copy.text("既存 statusline コマンド（任意）", "Existing statusline command (optional)"), text: $originalCommand)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                    Button(Copy.text("既存の statusline と連携", "Connect existing statusline")) {
+                    do {
+                        guard showFiveHour || showSevenDay else {
+                            message = Copy.text("少なくとも1つの quota 指標を選択してください。", "Select at least one quota metric.")
+                            return
+                        }
+                        try ClaudeStatusLineIntegration.saveMetricPreferences(showFiveHour: showFiveHour, showSevenDay: showSevenDay)
+                        try ClaudeStatusLineIntegration.install(preserving: originalCommand.isEmpty ? nil : originalCommand)
+                        message = Copy.text("設定しました。Claude Code を一度操作してください。", "Saved. Use Claude Code once to refresh the values.")
+                    } catch {
+                        message = error.localizedDescription
+                    }
+                    }
+                }
 
-            Divider()
+                SettingsCard(Copy.text("表示する利用枠", "Quota windows to display")) {
+                    Text(Copy.text("Claude Code の statusline に表示する利用枠を選択します。", "Choose which quota windows to show in Claude Code's statusline."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Toggle(Copy.text("5時間枠を表示", "Show 5-hour window"), isOn: $showFiveHour)
+                    Toggle(Copy.text("週次枠を表示", "Show 7-day window"), isOn: $showSevenDay)
+                }
 
-            Text(Copy.text("データの取り扱い", "Data handling"))
-                .font(.subheadline.weight(.semibold))
-            Text(Copy.text("Codex は公式の app-server を通じて利用量を読みます。Claude Code は statusline が渡す利用枠情報だけをローカルに保存し、Keychain・OAuth トークン・非公式 API にはアクセスしません。", "Codex usage is read through the official app-server. Claude Code only stores the quota data provided by its statusline locally; it does not access Keychain, OAuth tokens, or unofficial APIs."))
-            Text(Copy.text("Claude Code 連携を設定すると ~/.claude/settings.json の statusline を AgentQuota のラッパーにします。元のコマンドは保存し、同じ入力を渡して実行します。テレメトリー、自動更新、ログイン画面はありません。", "When enabled, AgentQuota wraps the statusline in ~/.claude/settings.json, preserves the original command, and passes it the same input. There is no telemetry, automatic update, or login screen."))
+                if let message {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 }
 
 private enum SettingsSection: Hashable {
     case settings
+    case claudeCode
     case update
-    case about
 }
 
 private struct SettingsWindow: View {
+    @ObservedObject var monitor: UsageMonitor
+    @AppStorage("appLanguage") private var appLanguage = "system"
     @State private var selection: SettingsSection? = .settings
 
     var body: some View {
@@ -174,22 +223,23 @@ private struct SettingsWindow: View {
             List(selection: $selection) {
                 Label(Copy.text("設定", "Settings"), systemImage: "gearshape")
                     .tag(SettingsSection.settings)
+                Label("Claude Code", systemImage: "terminal")
+                    .tag(SettingsSection.claudeCode)
                 Label("Update", systemImage: "arrow.down.circle")
                     .tag(SettingsSection.update)
-                Label("About", systemImage: "info.circle")
-                    .tag(SettingsSection.about)
             }
+            .id(appLanguage)
             .navigationTitle("AgentQuota")
             .frame(minWidth: 150)
         } detail: {
             Group {
                 switch selection {
+                case .claudeCode:
+                    ClaudeCodeView()
                 case .update:
                     UpdateView()
-                case .about:
-                    AboutView()
                 default:
-                    SettingsView()
+                    SettingsView(monitor: monitor)
                 }
             }
             .padding()
@@ -214,87 +264,46 @@ private struct SettingsWindow: View {
 }
 
 private struct SettingsView: View {
+    @ObservedObject var monitor: UsageMonitor
     @State private var message: String?
     @AppStorage("appLanguage") private var appLanguage = "system"
     @AppStorage("showCodex") private var showCodex = true
     @AppStorage("showClaude") private var showClaude = true
     @State private var launchAtLogin = LoginItem.isEnabled
-    @State private var showFiveHour = ClaudeStatusLineIntegration.metricPreferences.showFiveHour
-    @State private var showSevenDay = ClaudeStatusLineIntegration.metricPreferences.showSevenDay
-    @State private var originalCommand = ClaudeStatusLineIntegration.userCommand ?? ""
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 12) {
-            Text("AgentQuota")
-                .font(.title3.weight(.semibold))
-
-            Text(Copy.text("一般", "General"))
-                .font(.subheadline.weight(.semibold))
-            Picker(Copy.text("言語", "Language"), selection: $appLanguage) {
-                Text(Copy.text("システム設定", "System"))
-                    .tag("system")
-                Text("日本語")
-                    .tag("ja")
-                Text("English")
-                    .tag("en")
+            SettingsCard(Copy.text("一般", "General")) {
+                Picker(Copy.text("言語", "Language"), selection: $appLanguage) {
+                    Text(Copy.text("システム設定", "System"))
+                        .tag("system")
+                    Text("Japanese")
+                        .tag("ja")
+                    Text("English")
+                        .tag("en")
+                }
             }
 
-            Text(Copy.text("表示するサービス", "Services to display"))
-                .font(.subheadline.weight(.semibold))
-            Text(Copy.text("メニューバーとポップオーバーに表示する利用量を選択します。", "Choose which usage meters appear in the menu bar and popover."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Toggle(Copy.text("Codex の利用量を表示", "Show Codex usage"), isOn: $showCodex)
-            Toggle(Copy.text("Claude Code の利用量を表示", "Show Claude Code usage"), isOn: $showClaude)
-
-            Text(Copy.text("起動", "Startup"))
-                .font(.subheadline.weight(.semibold))
-            Toggle(Copy.text("ログイン時に AgentQuota を起動", "Launch AgentQuota at login"), isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { _, enabled in
-                    do {
-                        try LoginItem.setEnabled(enabled)
-                        message = nil
-                    } catch {
-                        launchAtLogin = LoginItem.isEnabled
-                        message = Copy.text("ログイン時起動を変更できません。配布版アプリから設定してください。", "Could not change launch-at-login. Configure it from the installed app.")
-                    }
-                }
-
-            Divider()
-
-            Text(Copy.text("Claude Code 連携", "Claude Code integration"))
-                .font(.subheadline.weight(.semibold))
-            HStack {
-                Text("statusline")
-                Spacer()
-                Text(ClaudeStatusLineIntegration.statusDescription)
+            SettingsCard(Copy.text("表示するサービス", "Services to display")) {
+                Text(Copy.text("メニューバーとポップオーバーに表示する利用量を選択します。", "Choose which usage meters appear in the menu bar and popover."))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle(Copy.text("Codex の利用量を表示", "Show Codex usage"), isOn: $showCodex)
+                Toggle(Copy.text("Claude Code の利用量を表示", "Show Claude Code usage"), isOn: $showClaude)
             }
-            .font(.caption)
 
-            Text(Copy.text("Claude Code の statusline を利用して、画面への表示と AgentQuota への保存を同時に行います。", "Claude Code's statusline is used for both its display and saving data to AgentQuota."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            TextField(Copy.text("既存 statusline コマンド（任意）", "Existing statusline command (optional)"), text: $originalCommand)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
-            Toggle(Copy.text("5時間枠", "5-hour window"), isOn: $showFiveHour)
-            Toggle(Copy.text("週次枠", "7-day window"), isOn: $showSevenDay)
-
-            Button(Copy.text("既存の statusline と連携", "Connect existing statusline")) {
-                do {
-                    guard showFiveHour || showSevenDay else {
-                        message = Copy.text("少なくとも1つの quota 指標を選択してください。", "Select at least one quota metric.")
-                        return
+            SettingsCard(Copy.text("起動", "Startup")) {
+                Toggle(Copy.text("ログイン時に AgentQuota を起動", "Launch AgentQuota at login"), isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in
+                        do {
+                            try LoginItem.setEnabled(enabled)
+                            message = nil
+                        } catch {
+                            launchAtLogin = LoginItem.isEnabled
+                            message = Copy.text("ログイン時起動を変更できません。配布版アプリから設定してください。", "Could not change launch-at-login. Configure it from the installed app.")
+                        }
                     }
-                    try ClaudeStatusLineIntegration.saveMetricPreferences(showFiveHour: showFiveHour, showSevenDay: showSevenDay)
-                    try ClaudeStatusLineIntegration.install(preserving: originalCommand.isEmpty ? nil : originalCommand)
-                    message = Copy.text("設定しました。Claude Code を一度操作してください。", "Saved. Use Claude Code once to refresh the values.")
-                } catch {
-                    message = error.localizedDescription
-                }
             }
 
             if let message {
@@ -306,6 +315,30 @@ private struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, 8)
         }
+        .onChange(of: appLanguage) { _, _ in
+            monitor.refresh()
+        }
+    }
+}
+
+private struct SettingsCard<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            content
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
