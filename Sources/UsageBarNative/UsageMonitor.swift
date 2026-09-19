@@ -24,24 +24,27 @@ final class UsageMonitor: ObservableObject {
 
     private var refreshTask: Task<Void, Never>?
 
-    var menuBarTitle: String {
-        let providers = [("Cdx", codex), ("Cl", claude)]
-        let values = providers.compactMap { name, usage in
-            usage.usedPercent.map { "\(name) \($0.formatted(.number.precision(.fractionLength(0))))%" }
+    func menuBarTitle(showCodex: Bool = true, showClaude: Bool = true) -> String {
+        var values: [String] = []
+        if showCodex, let percent = codex.usedPercent {
+            values.append("Cdx \(percent.formatted(.number.precision(.fractionLength(0))))%")
+        }
+        if showClaude, let percent = claude.usedPercent {
+            values.append("Cl \(percent.formatted(.number.precision(.fractionLength(0))))%")
         }
         return values.isEmpty ? "Quota —" : values.joined(separator: " · ")
     }
 
-    var hasUsageWarning: Bool {
-        let percentages = [codex.usedPercent, claude.usedPercent].compactMap { $0 }
+    func hasUsageWarning(showCodex: Bool = true, showClaude: Bool = true) -> Bool {
+        let percentages = [showCodex ? codex.usedPercent : nil, showClaude ? claude.usedPercent : nil].compactMap { $0 }
         return percentages.contains(where: { $0 >= 90 })
     }
 
-    var menuBarTooltip: String {
+    func menuBarTooltip(showCodex: Bool = true, showClaude: Bool = true) -> String {
         [
-            tooltipLine(name: "Codex", usage: codex),
-            tooltipLine(name: "Claude Code", usage: claude)
-        ].joined(separator: "\n")
+            showCodex ? tooltipLine(name: "Codex", usage: codex) : nil,
+            showClaude ? tooltipLine(name: "Claude Code", usage: claude) : nil
+        ].compactMap { $0 }.joined(separator: "\n")
     }
 
     private func tooltipLine(name: String, usage: ProviderUsage) -> String {

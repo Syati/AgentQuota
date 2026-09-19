@@ -4,19 +4,21 @@ import SwiftUI
 @main
 struct UsageBarNativeApp: App {
     @StateObject private var monitor = UsageMonitor()
+    @AppStorage("showCodex") private var showCodex = true
+    @AppStorage("showClaude") private var showClaude = true
 
     var body: some Scene {
         MenuBarExtra {
-            UsagePopover(monitor: monitor)
+            UsagePopover(monitor: monitor, showCodex: showCodex, showClaude: showClaude)
         } label: {
             HStack(spacing: 4) {
-                Text(monitor.menuBarTitle)
-                if monitor.hasUsageWarning {
+                Text(monitor.menuBarTitle(showCodex: showCodex, showClaude: showClaude))
+                if monitor.hasUsageWarning(showCodex: showCodex, showClaude: showClaude) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
             }
-            .help(monitor.menuBarTooltip)
+            .help(monitor.menuBarTooltip(showCodex: showCodex, showClaude: showClaude))
         }
         .menuBarExtraStyle(.window)
 
@@ -31,6 +33,8 @@ private struct UsagePopover: View {
     @ObservedObject var monitor: UsageMonitor
     @Environment(\.openWindow) private var openWindow
     @AppStorage("appLanguage") private var appLanguage = "system"
+    let showCodex: Bool
+    let showClaude: Bool
 
     var body: some View {
         usageView
@@ -41,39 +45,45 @@ private struct UsagePopover: View {
 
     private var usageView: some View {
         VStack(alignment: .leading, spacing: 16) {
-        HStack {
-            Text("AgentQuota")
-                .font(.headline)
-            Spacer()
-            if let refreshedAt = monitor.refreshedAt {
-                Text("\(Copy.text("更新", "Updated")): \(refreshedAt, format: .dateTime.hour().minute())")
-                    .foregroundStyle(.secondary)
-                    .font(.caption2)
-            }
-            Button {
-                monitor.refresh()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .help(Copy.text("更新", "Refresh"))
-            .disabled(monitor.isRefreshing)
-            Button(Copy.text("設定", "Settings")) {
-                openWindow(id: "settings")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    NSApp.activate(ignoringOtherApps: true)
-                    let title = Copy.text("AgentQuota 設定", "AgentQuota Settings")
-                    if let window = NSApp.windows.first(where: { $0.title == title }) {
-                        window.level = .floating
-                        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-                        window.makeKeyAndOrderFront(nil)
-                        window.orderFrontRegardless()
+            HStack(spacing: 8) {
+                Text("AgentQuota")
+                    .font(.headline)
+                if let refreshedAt = monitor.refreshedAt {
+                    Text(refreshedAt, format: .dateTime.hour().minute())
+                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .fixedSize()
+                        .help(Copy.text("最終更新時刻", "Last updated"))
+                }
+                Button {
+                    monitor.refresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help(Copy.text("更新", "Refresh"))
+                .disabled(monitor.isRefreshing)
+                Spacer()
+                Button(Copy.text("設定", "Settings")) {
+                    openWindow(id: "settings")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        NSApp.activate(ignoringOtherApps: true)
+                        let title = Copy.text("AgentQuota 設定", "AgentQuota Settings")
+                        if let window = NSApp.windows.first(where: { $0.title == title }) {
+                            window.level = .floating
+                            window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+                            window.makeKeyAndOrderFront(nil)
+                            window.orderFrontRegardless()
+                        }
                     }
                 }
-            }
+                .font(.caption)
+                Button(Copy.text("終了", "Quit"), role: .destructive) {
+                    NSApp.terminate(nil)
+                }
                 .font(.caption)
             }
 
-            UsageTable(codex: monitor.codex, claude: monitor.claude)
+            UsageTable(codex: monitor.codex, claude: monitor.claude, showCodex: showCodex, showClaude: showClaude)
         }
     }
 }
@@ -130,18 +140,35 @@ private struct SettingsWindow: View {
             .frame(minWidth: 360, alignment: .topLeading)
         }
         .frame(width: 600, height: 380)
+        .onAppear {
+            activateSettingsWindow()
+        }
     }
+
+    private func activateSettingsWindow() {
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            let title = Copy.text("AgentQuota 設定", "AgentQuota Settings")
+            if let window = NSApp.windows.first(where: { $0.title == title }) {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
 }
 
 private struct SettingsView: View {
     @State private var message: String?
     @AppStorage("appLanguage") private var appLanguage = "system"
+    @AppStorage("showCodex") private var showCodex = true
+    @AppStorage("showClaude") private var showClaude = true
     @State private var showFiveHour = ClaudeStatusLineIntegration.metricPreferences.showFiveHour
     @State private var showSevenDay = ClaudeStatusLineIntegration.metricPreferences.showSevenDay
     @State private var originalCommand = ClaudeStatusLineIntegration.userCommand ?? ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 12) {
             Text("AgentQuota")
                 .font(.title3.weight(.semibold))
 
@@ -155,7 +182,18 @@ private struct SettingsView: View {
                 Text("English")
                     .tag("en")
             }
-            Toggle(Copy.text("ログイン時に起動", "Launch at login"), isOn: Binding(
+
+            Text(Copy.text("表示するサービス", "Services to display"))
+                .font(.subheadline.weight(.semibold))
+            Text(Copy.text("メニューバーとポップオーバーに表示する利用量を選択します。", "Choose which usage meters appear in the menu bar and popover."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle(Copy.text("Codex の利用量を表示", "Show Codex usage"), isOn: $showCodex)
+            Toggle(Copy.text("Claude Code の利用量を表示", "Show Claude Code usage"), isOn: $showClaude)
+
+            Text(Copy.text("起動", "Startup"))
+                .font(.subheadline.weight(.semibold))
+            Toggle(Copy.text("ログイン時に AgentQuota を起動", "Launch AgentQuota at login"), isOn: Binding(
                 get: { LoginItem.isEnabled },
                 set: { enabled in
                     do {
@@ -208,6 +246,9 @@ private struct SettingsView: View {
                     .font(.caption)
                 .foregroundStyle(.secondary)
             }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
         }
     }
 }
@@ -215,6 +256,8 @@ private struct SettingsView: View {
 private struct UsageTable: View {
     let codex: ProviderUsage
     let claude: ProviderUsage
+    let showCodex: Bool
+    let showClaude: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -229,8 +272,8 @@ private struct UsageTable: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
 
-            UsageTableRow(title: "Codex", usage: codex)
-            UsageTableRow(title: "Claude", usage: claude)
+            if showCodex { UsageTableRow(title: "Codex", usage: codex) }
+            if showClaude { UsageTableRow(title: "Claude", usage: claude) }
         }
     }
 }
