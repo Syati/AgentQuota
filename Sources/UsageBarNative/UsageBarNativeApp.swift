@@ -63,7 +63,7 @@ private struct UsagePopover: View {
                 .help(Copy.text("更新", "Refresh"))
                 .disabled(monitor.isRefreshing)
                 Spacer()
-                Button(Copy.text("設定", "Settings")) {
+                Button("Settings") {
                     openWindow(id: "settings")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         NSApp.activate(ignoringOtherApps: true)
@@ -77,7 +77,7 @@ private struct UsagePopover: View {
                     }
                 }
                 .font(.caption)
-                Button(Copy.text("終了", "Quit"), role: .destructive) {
+                Button("Quit", role: .destructive) {
                     NSApp.terminate(nil)
                 }
                 .font(.caption)
@@ -354,9 +354,9 @@ private struct UsageTable: View {
             HStack(spacing: 12) {
                 Text("")
                     .frame(width: 70)
-                Text(Copy.text("5時間枠", "5-hour"))
+                Text("5-hour")
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Copy.text("週次枠", "7-day"))
+                Text("7-day")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.caption.weight(.semibold))
