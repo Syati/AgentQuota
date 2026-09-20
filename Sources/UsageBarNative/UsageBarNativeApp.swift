@@ -69,7 +69,6 @@ private struct UsagePopover: View {
                         NSApp.activate(ignoringOtherApps: true)
                         let title = Copy.text("AgentQuota 設定", "AgentQuota Settings")
                         if let window = NSApp.windows.first(where: { $0.title == title }) {
-                            window.level = .floating
                             window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
                             window.makeKeyAndOrderFront(nil)
                             window.orderFrontRegardless()
