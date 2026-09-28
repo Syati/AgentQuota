@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -32,6 +33,8 @@ final class UsageMonitor: ObservableObject {
     @Published private(set) var isRefreshing = false
 
     private var refreshTask: Task<Void, Never>?
+    private var activeRefresh: Task<Void, Never>?
+    private var wakeObserver: NSObjectProtocol?
 
     func menuBarTitle(showCodex: Bool = true, showClaude: Bool = true) -> String {
         var values: [String] = []
@@ -71,22 +74,51 @@ final class UsageMonitor: ObservableObject {
                 self?.refresh()
             }
         }
+        registerWakeObserver()
     }
 
     func refresh() {
         guard !isRefreshing else { return }
         isRefreshing = true
-        Task {
+        activeRefresh = Task {
             async let codexUsage = CodexUsageReader.read()
             async let claudeUsage = ClaudeStatusLineUsageReader.read()
-            codex = codex.merging(await codexUsage)
-            claude = claude.merging(await claudeUsage)
+            let codexResult = await codexUsage
+            let claudeResult = await claudeUsage
+            guard !Task.isCancelled else { return }
+            codex = codex.merging(codexResult)
+            claude = claude.merging(claudeResult)
             refreshedAt = .now
             isRefreshing = false
         }
     }
 
-    deinit { refreshTask?.cancel() }
+    /// A refresh can get stuck mid-flight across a system sleep (e.g. the
+    /// Codex subprocess's own internal timer failing to fire promptly on
+    /// wake), which would otherwise leave `isRefreshing` stuck `true`
+    /// forever and the menu bar spinner spinning indefinitely. On wake,
+    /// abandon any in-flight refresh and start a clean one.
+    private func registerWakeObserver() {
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.handleWake() }
+        }
+    }
+
+    private func handleWake() {
+        activeRefresh?.cancel()
+        activeRefresh = nil
+        isRefreshing = false
+        refresh()
+    }
+
+    deinit {
+        refreshTask?.cancel()
+        activeRefresh?.cancel()
+    }
 }
 
 enum CodexUsageReader {
