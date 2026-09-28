@@ -9,6 +9,15 @@ struct ProviderUsage: Sendable {
 
     static let loading = ProviderUsage(usedPercent: nil, secondaryUsedPercent: nil, resetsAt: nil, detail: Copy.text("読み込み中…", "Loading…"))
 
+    /// Keeps the last known-good percentages when a refresh fails to fetch any data,
+    /// so a transient failure doesn't blank out an already-displayed value.
+    func merging(_ next: ProviderUsage) -> ProviderUsage {
+        guard next.usedPercent != nil || next.secondaryUsedPercent != nil else {
+            return ProviderUsage(usedPercent: usedPercent, secondaryUsedPercent: secondaryUsedPercent, resetsAt: resetsAt, detail: next.detail)
+        }
+        return next
+    }
+
     var statusText: String {
         guard let usedPercent else { return "—" }
         return "\(usedPercent.formatted(.number.precision(.fractionLength(0))))%"
@@ -70,8 +79,8 @@ final class UsageMonitor: ObservableObject {
         Task {
             async let codexUsage = CodexUsageReader.read()
             async let claudeUsage = ClaudeStatusLineUsageReader.read()
-            codex = await codexUsage
-            claude = await claudeUsage
+            codex = codex.merging(await codexUsage)
+            claude = claude.merging(await claudeUsage)
             refreshedAt = .now
             isRefreshing = false
         }
