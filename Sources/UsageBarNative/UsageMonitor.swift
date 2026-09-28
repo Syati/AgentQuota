@@ -109,6 +109,14 @@ enum CodexUsageReader {
                 }
             }
 
+            let timeoutWorkItem = DispatchWorkItem {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10, execute: timeoutWorkItem)
+            defer { timeoutWorkItem.cancel() }
+
             let initialize = "{\"method\":\"initialize\",\"id\":1,\"params\":{\"clientInfo\":{\"name\":\"UsageBarNative\",\"version\":\"0.1.0\"}}}\n"
             input.fileHandleForWriting.write(Data(initialize.utf8))
 
