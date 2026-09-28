@@ -58,7 +58,11 @@ private struct UsagePopover: View {
                 Button {
                     monitor.refresh()
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    if monitor.isRefreshing {
+                        SpinnerIcon()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
                 .help(Copy.text("更新", "Refresh"))
                 .disabled(monitor.isRefreshing)
@@ -83,6 +87,22 @@ private struct UsagePopover: View {
             }
 
             UsageTable(codex: monitor.codex, claude: monitor.claude, showCodex: showCodex, showClaude: showClaude)
+        }
+    }
+}
+
+private struct SpinnerIcon: View {
+    var body: some View {
+        TimelineView(.animation) { context in
+            let angle = (context.date.timeIntervalSinceReferenceDate * 300).truncatingRemainder(dividingBy: 360)
+            Circle()
+                .trim(from: 0, to: 0.75)
+                .stroke(
+                    AngularGradient(colors: [.accentColor.opacity(0.1), .accentColor], center: .center),
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                )
+                .rotationEffect(.degrees(angle))
+                .frame(width: 13, height: 13)
         }
     }
 }
@@ -291,6 +311,16 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 Toggle(Copy.text("Codex の利用量を表示", "Show Codex usage"), isOn: $showCodex)
                 Toggle(Copy.text("Claude Code の利用量を表示", "Show Claude Code usage"), isOn: $showClaude)
+            }
+
+            SettingsCard(Copy.text("診断", "Diagnostics")) {
+                Text(Copy.text("Codex/Claude Code の取得結果を記録したログです。取得に失敗する原因の調査に使えます。", "Records each Codex/Claude Code fetch attempt, useful for diagnosing failures."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button(Copy.text("ログファイルを表示", "Show log file")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([DiagnosticsLog.url])
+                }
+                .font(.caption)
             }
 
             SettingsCard(Copy.text("起動", "Startup")) {
