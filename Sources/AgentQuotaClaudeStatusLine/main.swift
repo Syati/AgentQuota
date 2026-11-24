@@ -1,6 +1,7 @@
 import Foundation
+import OSLog
 
-struct UsageSnapshot: Encodable {
+struct UsageSnapshot: Codable {
     let cacheVersion: Int
     let fiveHourUsedPercent: Double?
     let sevenDayUsedPercent: Double?
@@ -47,12 +48,27 @@ let selectedReset = selectedFiveHour == nil ? nil : resetsAt
 do {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     if selectedFiveHour != nil || selectedWeek != nil {
-        let selectedSnapshot = UsageSnapshot(cacheVersion: 2, fiveHourUsedPercent: selectedFiveHour, sevenDayUsedPercent: selectedWeek, resetsAt: selectedReset)
+        // A statusline update may report only the weekly window.
+        let previous = (try? Data(contentsOf: file)).flatMap {
+            try? JSONDecoder().decode(UsageSnapshot.self, from: $0)
+        }
+        let keepFiveHour = showFiveHour && selectedFiveHour == nil
+            && previous?.cacheVersion == 2
+            && previous?.fiveHourUsedPercent != nil
+            && (previous?.resetsAt ?? 0) > Date().timeIntervalSince1970
+        let selectedSnapshot = UsageSnapshot(
+            cacheVersion: 2,
+            fiveHourUsedPercent: keepFiveHour ? previous?.fiveHourUsedPercent : selectedFiveHour,
+            sevenDayUsedPercent: selectedWeek,
+            resetsAt: keepFiveHour ? previous?.resetsAt : selectedReset
+        )
         let data = try JSONEncoder().encode(selectedSnapshot)
         try data.write(to: file, options: .atomic)
     }
 } catch {
-    // Claude Code の描画を止めないため、保存エラーは表示に反映しない。
+    let logger = Logger(subsystem: "io.github.Syati.AgentQuota", category: "ClaudeStatusLine")
+    let failure = error as NSError
+    logger.error("Could not save Claude quota cache: \(failure.domain, privacy: .public) (\(failure.code))")
 }
 
 var limits = ""
